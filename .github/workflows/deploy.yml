@@ -75,7 +75,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          source: "docker-compose.prod.yml"
+          source: "docker-compose.prod.yml,nginx-vps.conf"
           target: ${{ secrets.VPS_DEPLOY_PATH || '~/web-porto' }}
 
       # Optional: Create .env file on VPS from GitHub Secrets
@@ -159,6 +159,36 @@ jobs:
             echo "📁 Verifying files in container..."
             $USE_SUDO docker exec web-porto ls -la /usr/share/nginx/html/ || echo "⚠️  Container not ready yet"
             $USE_SUDO docker exec web-porto test -f /usr/share/nginx/html/index.html && echo "✅ index.html found" || echo "❌ index.html not found"
+
+            # Configure host nginx as reverse proxy (if nginx-vps.conf exists)
+            if [ -f "nginx-vps.conf" ]; then
+              echo "🔧 Configuring host nginx..."
+              
+              # Determine sudo for nginx commands
+              NGINX_SUDO=""
+              if [ -n "$USE_SUDO" ] || ! sudo -n true 2>/dev/null; then
+                NGINX_SUDO="sudo"
+              fi
+              
+              # Copy nginx config to sites-available
+              $NGINX_SUDO cp nginx-vps.conf /etc/nginx/sites-available/web-porto || echo "⚠️  Could not copy nginx config (may need manual setup)"
+              
+              # Create symlink to sites-enabled if it doesn't exist
+              if [ ! -L /etc/nginx/sites-enabled/web-porto ]; then
+                $NGINX_SUDO ln -s /etc/nginx/sites-available/web-porto /etc/nginx/sites-enabled/web-porto || echo "⚠️  Symlink may already exist"
+              fi
+              
+              # Test nginx configuration
+              if $NGINX_SUDO nginx -t 2>/dev/null; then
+                echo "✅ Nginx configuration is valid"
+                $NGINX_SUDO systemctl reload nginx || $NGINX_SUDO service nginx reload || echo "⚠️  Could not reload nginx (may need manual reload)"
+              else
+                echo "⚠️  Nginx configuration test failed - please check manually"
+              fi
+            else
+              echo "ℹ️  nginx-vps.conf not found - skipping host nginx configuration"
+              echo "   You may need to manually configure nginx to proxy to 127.0.0.1:8080"
+            fi
 
             # Clean up old images
             $USE_SUDO docker image prune -f

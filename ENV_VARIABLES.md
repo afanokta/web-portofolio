@@ -5,7 +5,9 @@ This guide explains how to set and use environment variables in your GitHub Acti
 ## Three Levels of Environment Variables
 
 ### 1. Workflow Level (Top of file)
+
 Available to all jobs in the workflow:
+
 ```yaml
 env:
   REGISTRY: ghcr.io
@@ -15,7 +17,9 @@ env:
 ```
 
 ### 2. Job Level (Inside a job)
+
 Available to all steps within that job:
+
 ```yaml
 jobs:
   build-and-deploy:
@@ -25,7 +29,9 @@ jobs:
 ```
 
 ### 3. Step Level (Inside a step)
+
 Only available in that specific step:
+
 ```yaml
 - name: Build Docker image
   env:
@@ -38,11 +44,13 @@ Only available in that specific step:
 To use GitHub Secrets in your workflow:
 
 1. **Add secrets in GitHub:**
+
    - Go to: Repository → Settings → Secrets and variables → Actions
    - Click "New repository secret"
    - Add your secret (e.g., `API_KEY`, `DATABASE_URL`)
 
 2. **Use in workflow:**
+
    ```yaml
    env:
      API_KEY: ${{ secrets.API_KEY }}
@@ -60,9 +68,11 @@ To use GitHub Secrets in your workflow:
 ## Passing Environment Variables to Docker
 
 ### Option 1: Build Arguments (for build-time)
+
 If you need env vars during Docker build:
 
 1. **In Dockerfile:**
+
    ```dockerfile
    ARG NODE_ENV=production
    ARG PUBLIC_API_URL
@@ -81,9 +91,11 @@ If you need env vars during Docker build:
    ```
 
 ### Option 2: Container Environment Variables (for runtime)
+
 Pass env vars to the running container:
 
 1. **In docker-compose.prod.yml:**
+
    ```yaml
    services:
      web:
@@ -102,12 +114,15 @@ Pass env vars to the running container:
    ```
 
 ### Option 3: Using .env File (Recommended for many vars)
+
 1. **Create .env file on VPS:**
+
    ```bash
    # On your VPS
    cd ~/web-porto
    nano .env
    ```
+
    ```env
    NODE_ENV=production
    PUBLIC_API_URL=https://api.example.com
@@ -115,6 +130,7 @@ Pass env vars to the running container:
    ```
 
 2. **Update docker-compose.prod.yml:**
+
    ```yaml
    services:
      web:
@@ -138,11 +154,13 @@ Pass env vars to the running container:
 ## Example: Complete Setup
 
 ### 1. Add secrets in GitHub:
+
 - `PUBLIC_API_URL`
 - `API_KEY`
 - `DATABASE_URL`
 
 ### 2. Update deploy.yml:
+
 ```yaml
 env:
   REGISTRY: ghcr.io
@@ -153,7 +171,7 @@ jobs:
   build-and-deploy:
     env:
       PUBLIC_API_URL: ${{ secrets.PUBLIC_API_URL }}
-    
+
     steps:
       - name: Deploy to VPS
         script: |
@@ -164,15 +182,16 @@ jobs:
           API_KEY=${{ secrets.API_KEY }}
           DATABASE_URL=${{ secrets.DATABASE_URL }}
           EOF
-          
+
           # Copy .env to VPS
           scp .env user@vps:~/web-porto/
-          
+
           # Deploy
           docker-compose -f docker-compose.prod.yml up -d
 ```
 
 ### 3. Update docker-compose.prod.yml:
+
 ```yaml
 services:
   web:
@@ -193,15 +212,15 @@ services:
 If you need to use env vars in your Astro app:
 
 1. **Prefix with `PUBLIC_`** for client-side access:
+
    ```env
    PUBLIC_API_URL=https://api.example.com
    ```
+
    Then use: `import.meta.env.PUBLIC_API_URL`
 
-2. **Server-side only** (without PUBLIC_ prefix):
+2. **Server-side only** (without PUBLIC\_ prefix):
    ```env
    DATABASE_URL=postgres://...
    ```
    Access via: `import.meta.env.DATABASE_URL` (only in server-side code)
-
-
