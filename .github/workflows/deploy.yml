@@ -136,22 +136,22 @@ jobs:
             $USE_SUDO docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
             # Stop and remove old container
-            $USE_SUDO docker-compose -f docker-compose.prod.yml down || $USE_SUDO docker compose -f docker-compose.prod.yml down || true
+            $USE_SUDO docker compose -f docker-compose.prod.yml down || $USE_SUDO docker compose -f docker-compose.prod.yml down || true
 
             # Update docker-compose.prod.yml with the correct image name
             sed -i "s|image:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest|g" docker-compose.prod.yml || true
 
             # Set environment variables for the container (optional)
-            # You can also use a .env file or pass them via docker-compose
+            # You can also use a .env file or pass them via docker compose
             export NODE_ENV=production
             # export PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
 
             # Start the new container with environment variables
             # Option 1: Pass env vars directly
-            # NODE_ENV=production $USE_SUDO docker-compose -f docker-compose.prod.yml up -d || $USE_SUDO docker compose -f docker-compose.prod.yml up -d
+            # NODE_ENV=production $USE_SUDO docker compose -f docker-compose.prod.yml up -d || $USE_SUDO docker compose -f docker-compose.prod.yml up -d
 
-            # Option 2: Use docker-compose (recommended - see docker-compose.prod.yml)
-            $USE_SUDO docker-compose -f docker-compose.prod.yml up -d || $USE_SUDO docker compose -f docker-compose.prod.yml up -d
+            # Option 2: Use docker compose (recommended - see docker-compose.prod.yml)
+            $USE_SUDO docker compose -f docker-compose.prod.yml up -d || $USE_SUDO docker compose -f docker-compose.prod.yml up -d
 
             # Clean up old images
             $USE_SUDO docker image prune -f
