@@ -16,14 +16,24 @@ COPY . .
 # Build the Astro app
 RUN npm run build
 
+# Verify build output
+RUN ls -la /app/dist || (echo "Build failed: dist directory not found" && exit 1)
+
 # Production stage with Nginx
 FROM nginx:alpine
+
+# Remove default nginx config
+RUN rm /etc/nginx/conf.d/default.conf
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy custom nginx config (if exists, otherwise use default)
+# Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Verify files are in place
+RUN ls -la /usr/share/nginx/html && \
+    ls -la /etc/nginx/conf.d/
 
 # Expose port 80
 EXPOSE 80

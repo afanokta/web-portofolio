@@ -8,8 +8,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    # Remove nginx.conf volume mount - use the one built into the image
+    # volumes:
+    #   - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     # Environment variables for the container
     environment:
       - NODE_ENV=production

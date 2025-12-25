@@ -75,7 +75,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          source: "docker-compose.prod.yml,nginx.conf"
+          source: "docker-compose.prod.yml"
           target: ${{ secrets.VPS_DEPLOY_PATH || '~/web-porto' }}
 
       # Optional: Create .env file on VPS from GitHub Secrets
@@ -116,10 +116,6 @@ jobs:
               echo "❌ docker-compose.prod.yml not found!"
               exit 1
             fi
-            if [ ! -f "nginx.conf" ]; then
-              echo "❌ nginx.conf not found!"
-              exit 1
-            fi
 
             # Determine if we need sudo for docker commands
             # Check if user is in docker group or needs sudo
@@ -152,6 +148,17 @@ jobs:
 
             # Option 2: Use docker compose (recommended - see docker-compose.prod.yml)
             $USE_SUDO docker compose -f docker-compose.prod.yml up -d || $USE_SUDO docker compose -f docker-compose.prod.yml up -d
+
+            # Wait for container to start
+            sleep 2
+
+            # Verify container is running and has files
+            echo "📋 Checking container status..."
+            $USE_SUDO docker ps --filter "name=web-porto" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+            echo "📁 Verifying files in container..."
+            $USE_SUDO docker exec web-porto ls -la /usr/share/nginx/html/ || echo "⚠️  Container not ready yet"
+            $USE_SUDO docker exec web-porto test -f /usr/share/nginx/html/index.html && echo "✅ index.html found" || echo "❌ index.html not found"
 
             # Clean up old images
             $USE_SUDO docker image prune -f
