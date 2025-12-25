@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   web:
-    image: ghcr.io/your-username/web-porto:latest
+    image: ghcr.io/afanokta/web-porto:latest
     container_name: web-porto
     restart: unless-stopped
     ports:
