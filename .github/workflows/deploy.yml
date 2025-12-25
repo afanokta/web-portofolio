@@ -10,6 +10,9 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  # Add your custom environment variables here
+  # NODE_ENV: production
+  # PUBLIC_API_URL: https://api.example.com
 
 jobs:
   build-and-deploy:
@@ -17,6 +20,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+
+    # Job-level environment variables (available to all steps in this job)
+    env:
+      BUILD_DATE: ${{ github.event.head_commit.timestamp }}
+      # Add job-specific env vars here
+      # DEPLOY_ENV: production
 
     steps:
       - name: Checkout code
@@ -44,6 +53,9 @@ jobs:
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
+        env:
+          # Step-level environment variables (only available in this step)
+          DOCKER_BUILDKIT: 1
         with:
           context: .
           push: true
@@ -51,6 +63,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Pass build arguments to Dockerfile (if needed)
+          # build-args: |
+          #   NODE_ENV=production
+          #   PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
 
       - name: Copy files to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -62,6 +78,25 @@ jobs:
           source: "docker-compose.prod.yml,nginx.conf"
           target: ${{ secrets.VPS_DEPLOY_PATH || '~/web-porto' }}
 
+      # Optional: Create .env file on VPS from GitHub Secrets
+      # Uncomment and customize this step if you need to pass environment variables to your container
+      # - name: Create .env file on VPS
+      #   uses: appleboy/ssh-action@v1.0.3
+      #   with:
+      #     host: ${{ secrets.VPS_HOST }}
+      #     username: ${{ secrets.VPS_USER }}
+      #     key: ${{ secrets.VPS_SSH_KEY }}
+      #     port: ${{ secrets.VPS_PORT || 22 }}
+      #     script: |
+      #       cd ${{ secrets.VPS_DEPLOY_PATH || '~/web-porto' }}
+      #       cat > .env << EOF
+      #       NODE_ENV=production
+      #       # Add your environment variables here
+      #       # PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
+      #       # API_KEY=${{ secrets.API_KEY }}
+      #       # DATABASE_URL=${{ secrets.DATABASE_URL }}
+      #       EOF
+
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -71,7 +106,7 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
             cd ${{ secrets.VPS_DEPLOY_PATH || '~/web-porto' }}
-            
+
             # Ensure files exist
             if [ ! -f "docker-compose.prod.yml" ]; then
               echo "❌ docker-compose.prod.yml not found!"
@@ -81,24 +116,32 @@ jobs:
               echo "❌ nginx.conf not found!"
               exit 1
             fi
-            
+
             # Login to GitHub Container Registry
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
-            
+
             # Pull the latest image
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            
+
             # Stop and remove old container
             docker-compose -f docker-compose.prod.yml down || docker compose -f docker-compose.prod.yml down || true
-            
+
             # Update docker-compose.prod.yml with the correct image name
             sed -i "s|image:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest|g" docker-compose.prod.yml || true
-            
-            # Start the new container
+
+            # Set environment variables for the container (optional)
+            # You can also use a .env file or pass them via docker-compose
+            export NODE_ENV=production
+            # export PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
+
+            # Start the new container with environment variables
+            # Option 1: Pass env vars directly
+            # NODE_ENV=production docker-compose -f docker-compose.prod.yml up -d || docker compose -f docker-compose.prod.yml up -d
+
+            # Option 2: Use docker-compose (recommended - see docker-compose.prod.yml)
             docker-compose -f docker-compose.prod.yml up -d || docker compose -f docker-compose.prod.yml up -d
-            
+
             # Clean up old images
             docker image prune -f
-            
-            echo "✅ Deployment completed successfully!"
 
+            echo "✅ Deployment completed successfully!"

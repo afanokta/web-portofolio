@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   web:
@@ -10,10 +10,18 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    # Environment variables for the container
+    environment:
+      - NODE_ENV=production
+      # Add your environment variables here
+      # - PUBLIC_API_URL=${PUBLIC_API_URL:-https://api.example.com}
+      # - API_KEY=${API_KEY}
+    # Or use an env_file (create .env file on VPS)
+    # env_file:
+    #   - .env
     networks:
       - web-network
 
 networks:
   web-network:
     driver: bridge
-

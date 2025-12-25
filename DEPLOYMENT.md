@@ -9,6 +9,7 @@ This project uses GitHub Actions for CI/CD to automatically build and deploy to 
 Go to your GitHub repository → Settings → Secrets and variables → Actions, and add the following secrets:
 
 #### Required Secrets:
+
 - **`VPS_HOST`**: Your VPS IP address or domain (e.g., `192.168.1.100` or `example.com`)
 - **`VPS_USER`**: SSH username for your VPS (e.g., `ubuntu` or `root`)
 - **`VPS_SSH_KEY`**: Your private SSH key for accessing the VPS
@@ -17,6 +18,7 @@ Go to your GitHub repository → Settings → Secrets and variables → Actions,
   - Copy private key content to GitHub secret
 
 #### Optional Secrets:
+
 - **`VPS_PORT`**: SSH port (default: 22)
 - **`VPS_DEPLOY_PATH`**: Path on VPS where project is located (default: `~/web-porto`)
 
@@ -58,6 +60,7 @@ scp docker-compose.prod.yml nginx.conf user@your-vps-ip:~/web-porto/
 The workflow automatically uses GitHub Container Registry (ghcr.io). No additional setup needed - it uses `GITHUB_TOKEN` automatically.
 
 **Note**: If your repository is private, you may need to make the package public or configure access:
+
 1. Go to your repository → Packages
 2. Click on your package
 3. Package settings → Change visibility (if needed)
@@ -73,6 +76,7 @@ The workflow automatically uses GitHub Container Registry (ghcr.io). No addition
    - Deploy/restart the container
 
 Or trigger manually:
+
 - Go to Actions tab → Build and Deploy → Run workflow
 
 **Note**: The workflow will automatically copy the necessary files to your VPS, so you don't need to manually copy them after the first setup.
@@ -80,6 +84,7 @@ Or trigger manually:
 ### 5. Verify Deployment
 
 After deployment, check:
+
 - Container is running: `docker ps`
 - View logs: `docker logs web-porto`
 - Access your site: `http://your-vps-ip`
@@ -103,15 +108,18 @@ docker-compose -f docker-compose.prod.yml up -d
 ## Troubleshooting
 
 ### SSH Connection Issues
+
 - Verify SSH key is correctly added to GitHub secrets
 - Test SSH connection: `ssh -i ~/.ssh/your-key user@vps-ip`
 - Check VPS firewall allows SSH (port 22)
 
 ### Docker Login Issues
+
 - Ensure `GITHUB_TOKEN` has package write permissions
 - Check package visibility settings in GitHub
 
 ### Container Not Starting
+
 - Check logs: `docker logs web-porto`
 - Verify nginx.conf exists in deployment path
 - Check port 80 is not in use: `sudo netstat -tulpn | grep :80`
@@ -123,4 +131,3 @@ docker-compose -f docker-compose.prod.yml up -d
 - Consider setting up SSL/TLS with Let's Encrypt
 - Regularly update Docker images
 - Monitor container logs for issues
-
