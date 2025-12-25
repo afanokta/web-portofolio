@@ -104,6 +104,10 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
+          # Use sudo if needed (set VPS_USE_SUDO secret to "true")
+          # Or use password for sudo (less secure)
+          # sudo: ${{ secrets.VPS_USE_SUDO || false }}
+          # sudo_pass: ${{ secrets.VPS_SUDO_PASSWORD }}
           script: |
             cd ${{ secrets.VPS_DEPLOY_PATH || '~/web-porto' }}
 
@@ -117,14 +121,22 @@ jobs:
               exit 1
             fi
 
+            # Determine if we need sudo for docker commands
+            # Check if user is in docker group or needs sudo
+            USE_SUDO=""
+            if ! groups | grep -q docker && ! docker ps &>/dev/null; then
+              USE_SUDO="sudo"
+              echo "ℹ️  Using sudo for docker commands"
+            fi
+
             # Login to GitHub Container Registry
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+            echo ${{ secrets.GITHUB_TOKEN }} | $USE_SUDO docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
             # Pull the latest image
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            $USE_SUDO docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
             # Stop and remove old container
-            docker-compose -f docker-compose.prod.yml down || docker compose -f docker-compose.prod.yml down || true
+            $USE_SUDO docker-compose -f docker-compose.prod.yml down || $USE_SUDO docker compose -f docker-compose.prod.yml down || true
 
             # Update docker-compose.prod.yml with the correct image name
             sed -i "s|image:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest|g" docker-compose.prod.yml || true
@@ -136,12 +148,12 @@ jobs:
 
             # Start the new container with environment variables
             # Option 1: Pass env vars directly
-            # NODE_ENV=production docker-compose -f docker-compose.prod.yml up -d || docker compose -f docker-compose.prod.yml up -d
+            # NODE_ENV=production $USE_SUDO docker-compose -f docker-compose.prod.yml up -d || $USE_SUDO docker compose -f docker-compose.prod.yml up -d
 
             # Option 2: Use docker-compose (recommended - see docker-compose.prod.yml)
-            docker-compose -f docker-compose.prod.yml up -d || docker compose -f docker-compose.prod.yml up -d
+            $USE_SUDO docker-compose -f docker-compose.prod.yml up -d || $USE_SUDO docker compose -f docker-compose.prod.yml up -d
 
             # Clean up old images
-            docker image prune -f
+            $USE_SUDO docker image prune -f
 
             echo "✅ Deployment completed successfully!"
