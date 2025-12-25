@@ -158,7 +158,23 @@ jobs:
 
             echo "📁 Verifying files in container..."
             $USE_SUDO docker exec web-porto ls -la /usr/share/nginx/html/ || echo "⚠️  Container not ready yet"
-            $USE_SUDO docker exec web-porto test -f /usr/share/nginx/html/index.html && echo "✅ index.html found" || echo "❌ index.html not found"
+            if $USE_SUDO docker exec web-porto test -f /usr/share/nginx/html/index.html 2>/dev/null; then
+              echo "✅ index.html found"
+              echo "📄 First few lines of index.html:"
+              $USE_SUDO docker exec web-porto head -5 /usr/share/nginx/html/index.html || true
+            else
+              echo "❌ index.html not found - checking what files exist:"
+              $USE_SUDO docker exec web-porto find /usr/share/nginx/html -type f | head -10 || true
+            fi
+
+            # Test container directly
+            echo "🧪 Testing container on localhost:8080..."
+            if curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080 | grep -q "200"; then
+              echo "✅ Container is serving content (HTTP 200)"
+            else
+              echo "⚠️  Container may not be serving content correctly"
+              curl -s http://127.0.0.1:8080 | head -3 || echo "   Cannot connect to container"
+            fi
 
             # Configure host nginx as reverse proxy (if nginx-vps.conf exists)
             if [ -f "nginx-vps.conf" ]; then
@@ -173,17 +189,38 @@ jobs:
               # Copy nginx config to sites-available
               $NGINX_SUDO cp nginx-vps.conf /etc/nginx/sites-available/web-porto || echo "⚠️  Could not copy nginx config (may need manual setup)"
               
+              # Remove default nginx site if it exists (to avoid conflicts)
+              if [ -L /etc/nginx/sites-enabled/default ]; then
+                echo "ℹ️  Removing default nginx site to avoid conflicts"
+                $NGINX_SUDO rm /etc/nginx/sites-enabled/default || true
+              fi
+              
               # Create symlink to sites-enabled if it doesn't exist
               if [ ! -L /etc/nginx/sites-enabled/web-porto ]; then
                 $NGINX_SUDO ln -s /etc/nginx/sites-available/web-porto /etc/nginx/sites-enabled/web-porto || echo "⚠️  Symlink may already exist"
+                echo "✅ Created nginx symlink"
+              else
+                echo "ℹ️  Nginx symlink already exists"
               fi
               
               # Test nginx configuration
-              if $NGINX_SUDO nginx -t 2>/dev/null; then
+              echo "🧪 Testing nginx configuration..."
+              if $NGINX_SUDO nginx -t 2>&1; then
                 echo "✅ Nginx configuration is valid"
                 $NGINX_SUDO systemctl reload nginx || $NGINX_SUDO service nginx reload || echo "⚠️  Could not reload nginx (may need manual reload)"
+                echo "✅ Nginx reloaded"
               else
-                echo "⚠️  Nginx configuration test failed - please check manually"
+                echo "❌ Nginx configuration test failed - please check manually"
+                echo "   Run: sudo nginx -t"
+              fi
+              
+              # Verify nginx is proxying correctly
+              echo "🧪 Testing nginx proxy..."
+              sleep 1
+              if curl -s http://127.0.0.1:8080 > /dev/null 2>&1; then
+                echo "✅ Container is accessible on localhost:8080"
+              else
+                echo "⚠️  Container not accessible on localhost:8080"
               fi
             else
               echo "ℹ️  nginx-vps.conf not found - skipping host nginx configuration"
